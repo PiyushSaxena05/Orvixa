@@ -295,3 +295,7 @@ SCREENSHOTS
 
 
 <img width="491" height="424" alt="Screenshot 2026-07-28 174141" src="https://github.com/user-attachments/assets/5765371b-97f2-49dd-ac3b-83a562e7ffef" />
+
+
+<img width="528" height="388" alt="image" src="https://github.com/user-attachments/assets/7a9e9a67-244f-416f-9583-6487e5effe6d" />
+
