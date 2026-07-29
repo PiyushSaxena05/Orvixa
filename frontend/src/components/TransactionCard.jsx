@@ -3,6 +3,7 @@ import StatusBadge from './StatusBadge'
 function TransactionCard({ transaction }) {
   const amount = (transaction.amountInPaise / 100).toFixed(2)
   const isFlagged = transaction.status === 'FLAGGED'
+  const isFailed = transaction.status === 'FAILED'
 
   return (
     <div className="border border-border-soft rounded-xl p-5 bg-surface">
@@ -25,6 +26,19 @@ function TransactionCard({ transaction }) {
           </svg>
           <p className="text-sm text-text-muted leading-relaxed">
             {transaction.fraudExplanation}
+          </p>
+        </div>
+      )}
+
+      {isFailed && transaction.retrySuggestion && (
+        <div className="mt-4 pt-4 border-t border-border-soft flex gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" className="text-danger shrink-0 mt-0.5">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M12 8v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="12" cy="16" r="0.5" fill="currentColor" />
+          </svg>
+          <p className="text-sm text-text-muted leading-relaxed">
+            {transaction.retrySuggestion}
           </p>
         </div>
       )}
