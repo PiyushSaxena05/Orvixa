@@ -91,6 +91,8 @@ public class PaymentService {
 
         if (saved.getStatus() == TransactionStatus.SUCCESS) {
             fraudDetectionService.analyzeFraud(saved);
+        } else if (saved.getStatus() == TransactionStatus.FAILED) {
+            retryAdvisorService.adviseOnFailure(saved);
         }
 
         return saved;
