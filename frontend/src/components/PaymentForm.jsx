@@ -41,6 +41,21 @@ function PaymentForm() {
       }
 
       const rzp = new window.Razorpay(options)
+
+      rzp.on('payment.failed', async function (response) {
+        const verifyRes = await fetch('http://localhost:8080/api/payments/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            razorpayOrderId: response.error.metadata.order_id,
+            razorpayPaymentId: response.error.metadata.payment_id,
+            razorpaySignature: 'invalid',
+          }),
+        })
+        const result = await verifyRes.json()
+        console.log('Payment marked as failed:', result)
+      })
+
       rzp.open()
     } catch (err) {
       console.error('Payment failed:', err)
