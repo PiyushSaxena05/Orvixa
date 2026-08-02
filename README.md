@@ -2,9 +2,9 @@
 
 # Orvixa
 
-### Real-Time Payment Platform with Explainable AI Fraud Detection & Retry Advice
+### Real-Time Payment Platform with Explainable AI Fraud Detection, Retry Advice & Conversational Assistant
 
-A learning project combining Razorpay payment integration, a locally-hosted LLM for fraud analysis and retry guidance, and real-time WebSocket updates — built end-to-end with Spring Boot and React.
+A learning project combining Razorpay payment integration, a locally-hosted LLM for fraud analysis, retry guidance and Q&A over transaction history, and real-time WebSocket updates — built end-to-end with Spring Boot and React.
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen?logo=springboot)
@@ -20,7 +20,7 @@ A learning project combining Razorpay payment integration, a locally-hosted LLM 
 
 ## Overview
 
-Orvixa is a payment platform that goes one step beyond "payment succeeded" or "payment failed." Every **successful** transaction is passed to a locally-hosted LLM (via [Ollama](https://ollama.com)), which evaluates it against the user's recent transaction history and returns a plain-English fraud risk explanation — not just a numeric score. Every **failed** transaction similarly gets an AI-generated, practical retry suggestion instead of a generic error message. Status changes are pushed to the frontend instantly over a WebSocket connection, with no polling involved.
+Orvixa is a payment platform that goes well beyond "payment succeeded" or "payment failed." Every **successful** transaction is passed to a locally-hosted LLM (via [Ollama](https://ollama.com)), which evaluates it against the user's recent transaction history and returns a plain-English fraud risk explanation — not just a numeric score. Every **failed** transaction gets an AI-generated, practical retry suggestion instead of a generic error message. On top of that, users can **ask natural-language questions about their own payment history** ("why did my last payment fail?") and get an answer grounded in their real transaction data, not a generic chatbot guess. Status changes are pushed to the frontend instantly over a WebSocket connection, with no polling involved.
 
 This is an actively-developed, project-based learning build. The features below are grouped honestly into **what's built and working** and **what's planned next** — nothing here is overstated.
 
@@ -68,15 +68,25 @@ spending pattern and occurred outside their usual activity hours.
 - The model returns **one short, practical suggestion** (e.g. *"Try again after a few minutes or contact your bank"*) instead of a generic "Payment Failed" message.
 - Stored on the transaction as `retrySuggestion` and pushed to the frontend in real time, same as fraud flags.
 
-### 4. Real-Time Updates (WebSocket / STOMP)
+### 4. Conversational Assistant (RAG over transaction history)
+- A dedicated `/api/assistant/ask` endpoint accepts a natural-language question plus a `userId`.
+- The backend **retrieves** that user's full transaction history and computes accurate summary facts (total transactions, success count, failure count) in Java — not left to the model to calculate.
+- Both the raw history and the pre-computed facts are injected into a prompt (retrieval-augmented generation), explicitly instructing the model to answer only from the provided data and to say so honestly if it can't.
+- Exposed in the frontend as a simple chat widget (`AssistantChat.jsx`) with optimistic UI updates and a "Thinking..." state while waiting on the model.
+
+### 5. Real-Time Updates (WebSocket / STOMP)
 - Spring's STOMP-over-WebSocket broker (`/ws` endpoint) broadcasts every transaction state change to a per-user topic: `/topic/transactions/{userId}`.
 - The React frontend subscribes on load and merges incoming updates into its transaction list live — no polling, no manual refresh. A transaction visibly moves `CREATED → SUCCESS → FLAGGED` (or `CREATED → FAILED`, with a retry tip) in real time.
 
-### 5. Transaction Persistence
+### 6. Transaction Persistence
 - Every transaction (order ID, payment ID, amount, currency, user, status, fraud score, fraud explanation, retry suggestion, timestamps) is stored in an embedded H2 database — zero external setup required.
 
-### 6. CORS Configuration
+### 7. CORS Configuration
 - `/api/**` explicitly allows the local Vite dev origin, since frontend and backend run on different ports during development.
+
+### 8. Frontend Polish
+- Loading and empty states for the transaction list (no more blank screens while history is fetching or before a user's first payment).
+- Client-side amount validation and inline error messages on the payment form, instead of silent console-only failures.
 
 ---
 
@@ -98,6 +108,7 @@ Razorpay    H2 Database    Ollama (local LLM)
          ▼             ▼
   PaymentService   FraudDetectionService
          │          RetryAdvisorService
+         │          AssistantService (RAG)
          ▼
   TransactionBroadcaster (WebSocket push)
          │
@@ -111,6 +122,7 @@ Controller  →  Service  →  Repository  →  H2 Database
                   │
                   ├──→ FraudDetectionService  →  Ollama   (on SUCCESS)
                   ├──→ RetryAdvisorService     →  Ollama   (on FAILED)
+                  ├──→ AssistantService        →  Ollama   (on user question, RAG)
                   └──→ TransactionBroadcaster  →  WebSocket
 ```
 
@@ -147,6 +159,18 @@ POST /verify  →  HMAC-SHA256 signature recomputed & compared
               Ollama scores + explains
                         │
               score ≥ 0.6 → status FLAGGED → broadcast
+
+
+Anytime: User asks a question in the chat widget
+        │
+        ▼
+POST /api/assistant/ask  →  fetch full history + compute facts (Java)
+        │
+        ▼
+Prompt built (history + facts + question)  →  Ollama
+        │
+        ▼
+Grounded natural-language answer returned
 ```
 
 ---
@@ -171,6 +195,7 @@ POST /verify  →  HMAC-SHA256 signature recomputed & compared
 | POST | `/api/payments/create-order` | Creates a Razorpay order, persists a `CREATED` transaction |
 | POST | `/api/payments/verify` | Verifies payment signature, updates status, triggers AI fraud check or retry advice |
 | GET | `/api/payments/history/{userId}` | Returns a user's full transaction history, latest first |
+| POST | `/api/assistant/ask` | Answers a natural-language question about a user's transaction history (RAG) |
 | WS | `/ws` (STOMP topic `/topic/transactions/{userId}`) | Live transaction status push |
 
 > No authentication currently sits in front of these endpoints — see [Roadmap](#roadmap).
@@ -183,12 +208,13 @@ POST /verify  →  HMAC-SHA256 signature recomputed & compared
 Orvixa (backend)
 └── src/main/java/com/Orvixa/Orvixa
     ├── config          # RazorpayConfig, WebSocketConfig, CorsConfig
-    ├── controller       # PaymentController, GlobalExceptionHandler
+    ├── controller       # PaymentController, AssistantController, GlobalExceptionHandler
     ├── service          # PaymentService, FraudDetectionService,
-    │                     # RetryAdvisorService, TransactionBroadcaster
+    │                     # RetryAdvisorService, AssistantService, TransactionBroadcaster
     ├── repository        # TransactionRepository (Spring Data JPA)
     ├── model              # Transaction, TransactionStatus
-    └── dto                 # CreateOrderRequest/Response, PaymentVerificationRequest
+    └── dto                 # CreateOrderRequest/Response, PaymentVerificationRequest,
+                              # ChatRequest, ChatResponse
 
 Orvixa-Frontend
 └── src
@@ -196,8 +222,9 @@ Orvixa-Frontend
     │   ├── Header.jsx
     │   ├── PaymentForm.jsx
     │   ├── TransactionCard.jsx
-    │   └── StatusBadge.jsx
-    ├── App.jsx           # fetches history, subscribes to WebSocket, renders list
+    │   ├── StatusBadge.jsx
+    │   └── AssistantChat.jsx
+    ├── App.jsx           # fetches history, subscribes to WebSocket, renders list + chat
     └── main.jsx
 ```
 
@@ -239,7 +266,7 @@ Frontend runs on `http://localhost:5173` (Vite default).
 
 ### Ollama
 
-Make sure Ollama is running before testing a payment (fraud analysis / retry advice will fail silently/slowly otherwise):
+Make sure Ollama is running before testing a payment or asking the assistant a question:
 
 ```bash
 ollama serve
@@ -277,7 +304,6 @@ spring.ai.ollama.chat.options.temperature=0.3
 
 Planned next, in order:
 
-- [ ] **Conversational assistant (RAG)** — let a user ask natural-language questions about their own transaction history ("why did my payment fail last week").
 - [ ] **AI spend insights** — natural-language weekly/monthly spending summaries generated from transaction history.
 - [ ] **Authentication** — real login + JWT, replacing the current hardcoded `userId`.
 - [ ] **Production-grade database** — migrate from embedded H2 to PostgreSQL.
@@ -288,7 +314,8 @@ Planned next, in order:
 ## Learning Outcomes
 
 - Payment gateway integration (Razorpay) with server-side signature verification
-- Applying a local LLM (Ollama + Spring AI) to real, structured use cases (fraud scoring and retry guidance) rather than open-ended chat
+- Applying a local LLM (Ollama + Spring AI) to real, structured use cases: fraud scoring, retry guidance, and retrieval-augmented Q&A — rather than open-ended chat
+- Recognizing and working around small-model limitations (e.g. offloading counting/arithmetic to Java rather than trusting the LLM to calculate)
 - Spring Boot fundamentals: dependency injection, layered architecture, Spring Data JPA
 - Real-time client-server communication with STOMP over WebSocket
 - CORS and cross-origin frontend/backend integration
@@ -306,6 +333,17 @@ Planned next, in order:
 
 <img width="1164" height="67" alt="Live status badge" src="https://github.com/user-attachments/assets/04507b81-a98f-445f-9e3a-29cbe82d22fd" />
 
-<img width="491" height="424" alt="Razorpay checkout success" src="https://github.com/user-attachments/assets/5765371b-97f2-49dd-ac3b-83a562e7ffef" />
+<img width="491" height="424" alt="Razorpay checkout success" src="https://github.com/user-attachments/assets/5765371b-97f2-52dd-ac3b-83a562e7ffef" />
 
 <img width="528" height="388" alt="Fraud/retry explanation card" src="https://github.com/user-attachments/assets/7a9e9a67-244f-416f-9583-6487e5effe6d" />
+
+<img width="517" height="268" alt="Screenshot 2026-08-02 165556" src="https://github.com/user-attachments/assets/8357487b-10a8-4dc9-b867-93fcb7ecc17c" />
+
+<img width="424" height="283" alt="Screenshot 2026-08-02 170029" src="https://github.com/user-attachments/assets/f9957ae8-d1a7-4d0a-b426-1abe4a3e3098" />
+
+
+
+---
+
+### Author
+Built by [Piyush Saxena](https://github.com/PiyushSaxena05) as a hands-on, project-based way to learn Spring Boot, Spring AI, and real-time systems.
