@@ -3,8 +3,16 @@ import { useState } from 'react'
 function PaymentForm() {
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handlePay = async () => {
+    setError('')
+
+    if (!amount || Number(amount) <= 0) {
+      setError('Please enter a valid amount')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -17,6 +25,11 @@ function PaymentForm() {
           userId: 'user_123',
         }),
       })
+
+      if (!orderRes.ok) {
+        throw new Error('Could not start payment. Please try again.')
+      }
+
       const order = await orderRes.json()
 
       const options = {
@@ -59,6 +72,7 @@ function PaymentForm() {
       rzp.open()
     } catch (err) {
       console.error('Payment failed:', err)
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -75,11 +89,18 @@ function PaymentForm() {
         <input
           type="number"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            setAmount(e.target.value)
+            setError('')
+          }}
           placeholder="0.00"
           className="font-mono text-5xl bg-transparent text-text-primary outline-none w-full placeholder:text-text-muted/40"
         />
       </div>
+
+      {error && (
+        <p className="text-sm text-danger mb-4 -mt-4">{error}</p>
+      )}
 
       <button
         onClick={handlePay}
