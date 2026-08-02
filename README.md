@@ -344,6 +344,3 @@ Planned next, in order:
 
 
 ---
-
-### Author
-Built by [Piyush Saxena](https://github.com/PiyushSaxena05) as a hands-on, project-based way to learn Spring Boot, Spring AI, and real-time systems.
