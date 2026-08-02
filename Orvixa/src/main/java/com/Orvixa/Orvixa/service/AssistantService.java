@@ -1,6 +1,7 @@
 package com.Orvixa.Orvixa.service;
 
 import com.Orvixa.Orvixa.model.Transaction;
+import com.Orvixa.Orvixa.model.TransactionStatus;
 import com.Orvixa.Orvixa.repository.TransactionRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
@@ -38,10 +39,25 @@ public class AssistantService {
             historyText = "No transactions found for this user.";
         }
 
+        int transactionCount = history.size();
+
+        long successCount = history.stream()
+                .filter(t -> t.getStatus() == TransactionStatus.SUCCESS || t.getStatus() == TransactionStatus.FLAGGED)
+                .count();
+
+        long failedCount = history.stream()
+                .filter(t -> t.getStatus() == TransactionStatus.FAILED)
+                .count();
+
         String promptText = """
                 You are a helpful payment assistant. Answer the user's question using
-                ONLY the transaction history provided below. If the history doesn't
+                the transaction history and facts provided below. If the history doesn't
                 contain enough information to answer, say so honestly.
+
+                Known facts (these are accurate — use them directly, do not recalculate):
+                Total transactions: %d
+                Successful/flagged transactions: %d
+                Failed transactions: %d
 
                 Transaction history:
                 %s
@@ -49,7 +65,7 @@ public class AssistantService {
                 User's question: %s
 
                 Give a short, direct answer (2-3 sentences max).
-                """.formatted(historyText, question);
+                """.formatted(transactionCount, successCount, failedCount, historyText, question);
 
         return chatClient.prompt()
                 .user(promptText)
