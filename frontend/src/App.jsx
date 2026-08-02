@@ -4,17 +4,20 @@ import { Client } from '@stomp/stompjs'
 import Header from './components/Header'
 import PaymentForm from './components/PaymentForm'
 import TransactionCard from './components/TransactionCard'
+import AssistantChat from './components/AssistantChat'
 
 const USER_ID = 'user_123'
 
 function App() {
   const [transactions, setTransactions] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
 
   useEffect(() => {
     fetch(`http://localhost:8080/api/payments/history/${USER_ID}`)
       .then((res) => res.json())
       .then((data) => setTransactions(data))
       .catch((err) => console.error('Failed to fetch history:', err))
+      .finally(() => setLoadingHistory(false))
   }, [])
 
   useEffect(() => {
@@ -48,10 +51,22 @@ function App() {
       <PaymentForm />
 
       <div className="max-w-md mx-auto mt-10 space-y-4 pb-16">
-        {transactions.map((transaction) => (
-          <TransactionCard key={transaction.id} transaction={transaction} />
-        ))}
+        {loadingHistory ? (
+          <p className="text-center text-text-muted text-sm font-mono">
+            Loading transactions...
+          </p>
+        ) : transactions.length === 0 ? (
+          <p className="text-center text-text-muted text-sm font-mono">
+            No transactions yet — make your first payment above.
+          </p>
+        ) : (
+          transactions.map((transaction) => (
+            <TransactionCard key={transaction.id} transaction={transaction} />
+          ))
+        )}
       </div>
+
+      <AssistantChat />
     </div>
   )
 }
