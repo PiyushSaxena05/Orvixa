@@ -4,6 +4,7 @@ import com.Orvixa.Orvixa.dto.ChatRequest;
 import com.Orvixa.Orvixa.dto.ChatResponse;
 import com.Orvixa.Orvixa.service.AssistantService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,8 +21,8 @@ public class AssistantController {
     }
 
     @PostMapping("/ask")
-    public ResponseEntity<ChatResponse> ask(@RequestBody ChatRequest request) {
-        String answer = assistantService.answerQuestion(request.getUserId(), request.getQuestion());
+    public ResponseEntity<ChatResponse> ask(@RequestBody ChatRequest request, Authentication authentication) {
+        String answer = assistantService.answerQuestion(authentication.getName(), request.getQuestion());
         return ResponseEntity.ok(new ChatResponse(answer));
     }
 }
