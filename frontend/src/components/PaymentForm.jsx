@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function PaymentForm() {
+function PaymentForm({ token }) {
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -18,11 +18,13 @@ function PaymentForm() {
     try {
       const orderRes = await fetch('http://localhost:8080/api/payments/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           amount: Number(amount),
           currency: 'INR',
-          userId: 'user_123',
         }),
       })
 
@@ -41,7 +43,10 @@ function PaymentForm() {
         handler: async function (response) {
           const verifyRes = await fetch('http://localhost:8080/api/payments/verify', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify({
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
@@ -58,7 +63,10 @@ function PaymentForm() {
       rzp.on('payment.failed', async function (response) {
         const verifyRes = await fetch('http://localhost:8080/api/payments/verify', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             razorpayOrderId: response.error.metadata.order_id,
             razorpayPaymentId: response.error.metadata.payment_id,
