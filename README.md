@@ -4,10 +4,11 @@
 
 ### Real-Time Payment Platform with Explainable AI Fraud Detection, Retry Advice & Conversational Assistant
 
-A learning project combining Razorpay payment integration, a locally-hosted LLM for fraud analysis, retry guidance and Q&A over transaction history, and real-time WebSocket updates — built end-to-end with Spring Boot and React.
+A learning project combining Razorpay payment integration, JWT-based authentication, a locally-hosted LLM for fraud analysis, retry guidance and Q&A over transaction history, and real-time WebSocket updates — built end-to-end with Spring Boot and React.
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen?logo=springboot)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen?logo=springboot)
+![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-6DB33F?logo=springsecurity)
 ![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react)
 ![H2 Database](https://img.shields.io/badge/H2-Database-blue?logo=h2)
 ![WebSocket](https://img.shields.io/badge/Realtime-WebSocket%20%2F%20STOMP-blue)
@@ -20,7 +21,7 @@ A learning project combining Razorpay payment integration, a locally-hosted LLM 
 
 ## Overview
 
-Orvixa is a payment platform that goes well beyond "payment succeeded" or "payment failed." Every **successful** transaction is passed to a locally-hosted LLM (via [Ollama](https://ollama.com)), which evaluates it against the user's recent transaction history and returns a plain-English fraud risk explanation — not just a numeric score. Every **failed** transaction gets an AI-generated, practical retry suggestion instead of a generic error message. On top of that, users can **ask natural-language questions about their own payment history** ("why did my last payment fail?") and get an answer grounded in their real transaction data, not a generic chatbot guess. Status changes are pushed to the frontend instantly over a WebSocket connection, with no polling involved.
+Orvixa is a payment platform that goes well beyond "payment succeeded" or "payment failed." Every registered user authenticates with a real email/password account (JWT-secured), and can only ever see and act on their own transactions. Every **successful** transaction is passed to a locally-hosted LLM (via [Ollama](https://ollama.com)), which evaluates it against the user's recent transaction history and returns a plain-English fraud risk explanation — not just a numeric score. Every **failed** transaction gets an AI-generated, practical retry suggestion instead of a generic error message. Users can also **ask natural-language questions about their own payment history** ("why did my last payment fail?") and get an answer grounded in their real transaction data. Status changes are pushed to the frontend instantly over a WebSocket connection, with no polling involved.
 
 This is an actively-developed, project-based learning build. The features below are grouped honestly into **what's built and working** and **what's planned next** — nothing here is overstated.
 
@@ -30,6 +31,7 @@ This is an actively-developed, project-based learning build. The features below 
 
 - [What's Actually Built](#whats-actually-built)
 - [System Architecture](#system-architecture)
+- [Auth Flow](#auth-flow)
 - [Payment & AI Flow](#payment--ai-flow)
 - [Tech Stack](#tech-stack)
 - [API Reference](#api-reference)
@@ -45,13 +47,20 @@ This is an actively-developed, project-based learning build. The features below 
 
 ## What's Actually Built
 
-### 1. Razorpay Payment Integration (test mode)
-- Backend creates a Razorpay order (`/api/payments/create-order`), persists a `Transaction` row immediately with status `CREATED`.
+### 1. JWT Authentication (Spring Security)
+- Real signup/login with `/api/auth/signup` and `/api/auth/login`. Passwords are hashed with **BCrypt** before storage — plaintext passwords are never persisted or logged.
+- On successful signup/login, the backend issues a **JWT** signed with a server-side secret, containing the user's email and an expiry.
+- A custom `JwtAuthFilter` runs on every request, validates the token's signature and expiry, and populates Spring Security's context — no server-side session storage (fully stateless).
+- All payment and assistant endpoints are protected (`anyRequest().authenticated()`); only `/api/auth/**`, the WebSocket handshake, and the H2 console are public.
+- **Critically:** `userId` is never trusted from the request body or URL anymore — every endpoint derives it from the verified JWT (`Authentication.getName()`), so one user can never create, view, or query another user's transactions, even by guessing IDs.
+
+### 2. Razorpay Payment Integration (test mode)
+- Backend creates a Razorpay order (`/api/payments/create-order`), persists a `Transaction` row immediately with status `CREATED`, tied to the authenticated user.
 - Frontend opens Razorpay's Checkout popup using the returned order ID.
 - On completion (or failure), the frontend sends the relevant `orderId` / `paymentId` / `signature` to `/api/payments/verify`.
 - The backend **independently recomputes the HMAC-SHA256 signature** server-side using the Razorpay secret key and compares it — a payment is only ever marked `SUCCESS` if this matches. The client's word alone is never trusted.
 
-### 2. AI Fraud Detection (Ollama, running locally)
+### 3. AI Fraud Detection (Ollama, running locally)
 - On every `SUCCESS` transaction, the backend pulls the user's last 10 transactions and builds a prompt describing the new transaction's amount against that history.
 - The prompt is sent to a **locally-running Ollama model (`llama3.2`)** — no external API key, no data leaving the machine.
 - The model returns a risk score (0.0–1.0) and a one-line plain-English explanation, which are parsed and stored on the transaction (`fraudScore`, `fraudExplanation`).
@@ -63,28 +72,29 @@ FLAGGED — This amount is significantly higher than the user's typical
 spending pattern and occurred outside their usual activity hours.
 ```
 
-### 3. AI Retry Advisor (Ollama, running locally)
+### 4. AI Retry Advisor (Ollama, running locally)
 - On every `FAILED` transaction, the backend checks the user's recent failure history and sends it, along with the failed amount, to the same local Ollama model.
 - The model returns **one short, practical suggestion** (e.g. *"Try again after a few minutes or contact your bank"*) instead of a generic "Payment Failed" message.
 - Stored on the transaction as `retrySuggestion` and pushed to the frontend in real time, same as fraud flags.
 
-### 4. Conversational Assistant (RAG over transaction history)
-- A dedicated `/api/assistant/ask` endpoint accepts a natural-language question plus a `userId`.
+### 5. Conversational Assistant (RAG over transaction history)
+- A dedicated `/api/assistant/ask` endpoint accepts a natural-language question; the user is identified via JWT, not a client-supplied ID.
 - The backend **retrieves** that user's full transaction history and computes accurate summary facts (total transactions, success count, failure count) in Java — not left to the model to calculate.
-- Both the raw history and the pre-computed facts are injected into a prompt (retrieval-augmented generation), explicitly instructing the model to answer only from the provided data and to say so honestly if it can't.
+- Both the raw history and the pre-computed facts are injected into a prompt (retrieval-augmented generation), explicitly instructing the model to answer only from the provided data and to say so honestly if it can't — verified in practice: when asked about data outside the provided context, the model correctly declined rather than guessing.
 - Exposed in the frontend as a simple chat widget (`AssistantChat.jsx`) with optimistic UI updates and a "Thinking..." state while waiting on the model.
 
-### 5. Real-Time Updates (WebSocket / STOMP)
-- Spring's STOMP-over-WebSocket broker (`/ws` endpoint) broadcasts every transaction state change to a per-user topic: `/topic/transactions/{userId}`.
+### 6. Real-Time Updates (WebSocket / STOMP)
+- Spring's STOMP-over-WebSocket broker (`/ws` endpoint) broadcasts every transaction state change to a per-user topic: `/topic/transactions/{userEmail}`.
 - The React frontend subscribes on load and merges incoming updates into its transaction list live — no polling, no manual refresh. A transaction visibly moves `CREATED → SUCCESS → FLAGGED` (or `CREATED → FAILED`, with a retry tip) in real time.
 
-### 6. Transaction Persistence
-- Every transaction (order ID, payment ID, amount, currency, user, status, fraud score, fraud explanation, retry suggestion, timestamps) is stored in an embedded H2 database — zero external setup required.
+### 7. Transaction Persistence
+- Every transaction (order ID, payment ID, amount, currency, owning user, status, fraud score, fraud explanation, retry suggestion, timestamps) is stored in an embedded H2 database — zero external setup required.
 
-### 7. CORS Configuration
-- `/api/**` explicitly allows the local Vite dev origin, since frontend and backend run on different ports during development.
+### 8. CORS Configuration
+- Explicitly scoped to the local Vite dev origin, since frontend and backend run on different ports during development.
 
-### 8. Frontend Polish
+### 9. Frontend Polish
+- A real login/signup screen gates the app; the JWT is kept in `localStorage` and attached to every API call.
 - Loading and empty states for the transaction list (no more blank screens while history is fetching or before a user's first payment).
 - Client-side amount validation and inline error messages on the payment form, instead of silent console-only failures.
 
@@ -95,10 +105,12 @@ spending pattern and occurred outside their usual activity hours.
 ```
         React (Vite) Frontend
                 │
-     REST (fetch)   │   WebSocket (STOMP)
+     REST (fetch, JWT header)   │   WebSocket (STOMP)
                 │
                 ▼
         Spring Boot Backend
+                │
+      JwtAuthFilter → SecurityContext
                 │
    ┌────────────┼─────────────┐
    ▼            ▼             ▼
@@ -118,12 +130,40 @@ Razorpay    H2 Database    Ollama (local LLM)
 
 Backend layering:
 ```
-Controller  →  Service  →  Repository  →  H2 Database
-                  │
-                  ├──→ FraudDetectionService  →  Ollama   (on SUCCESS)
-                  ├──→ RetryAdvisorService     →  Ollama   (on FAILED)
-                  ├──→ AssistantService        →  Ollama   (on user question, RAG)
-                  └──→ TransactionBroadcaster  →  WebSocket
+JwtAuthFilter → Controller → Service → Repository → H2 Database
+                    │
+                    ├──→ FraudDetectionService  →  Ollama   (on SUCCESS)
+                    ├──→ RetryAdvisorService     →  Ollama   (on FAILED)
+                    ├──→ AssistantService        →  Ollama   (on user question, RAG)
+                    └──→ TransactionBroadcaster  →  WebSocket
+```
+
+---
+
+## Auth Flow
+
+```
+POST /api/auth/signup {email, password, fullName}
+        │
+        ▼
+Password hashed (BCrypt) → User saved → JWT issued
+        │
+        ▼
+Frontend stores JWT in localStorage
+
+
+Every subsequent request:
+Authorization: Bearer <token>
+        │
+        ▼
+JwtAuthFilter validates signature + expiry
+        │
+        ▼
+SecurityContext populated with user's email
+        │
+        ▼
+Controller uses Authentication.getName() as the userId —
+never a client-supplied value
 ```
 
 ---
@@ -131,12 +171,12 @@ Controller  →  Service  →  Repository  →  H2 Database
 ## Payment & AI Flow
 
 ```
-User submits amount
+User submits amount (while authenticated)
         │
         ▼
-POST /create-order  →  Razorpay order created  →  Transaction saved (CREATED)
-        │                                              │
-        ▼                                    WebSocket broadcast
+POST /create-order  →  userId taken from JWT  →  Razorpay order created  →  Transaction saved (CREATED)
+        │                                                                        │
+        ▼                                                              WebSocket broadcast
 Razorpay Checkout popup (test card / netbanking)
         │
         ▼
@@ -164,7 +204,7 @@ POST /verify  →  HMAC-SHA256 signature recomputed & compared
 Anytime: User asks a question in the chat widget
         │
         ▼
-POST /api/assistant/ask  →  fetch full history + compute facts (Java)
+POST /api/assistant/ask (JWT)  →  fetch full history + compute facts (Java)
         │
         ▼
 Prompt built (history + facts + question)  →  Ollama
@@ -179,7 +219,8 @@ Grounded natural-language answer returned
 
 | Layer | Technologies |
 |---|---|
-| Backend | Java 21, Spring Boot, Spring Data JPA, Spring WebSocket (STOMP), Maven |
+| Backend | Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, Spring WebSocket (STOMP), Maven |
+| Auth | Spring Security, BCrypt, JJWT (`jjwt-api`/`impl`/`jackson`) |
 | Frontend | React (Vite), Tailwind CSS, sockjs-client, @stomp/stompjs |
 | AI | Spring AI, Ollama (`llama3.2`) — local inference, no external API key |
 | Database | H2 (embedded, file-based) |
@@ -190,15 +231,15 @@ Grounded natural-language answer returned
 
 ## API Reference
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/payments/create-order` | Creates a Razorpay order, persists a `CREATED` transaction |
-| POST | `/api/payments/verify` | Verifies payment signature, updates status, triggers AI fraud check or retry advice |
-| GET | `/api/payments/history/{userId}` | Returns a user's full transaction history, latest first |
-| POST | `/api/assistant/ask` | Answers a natural-language question about a user's transaction history (RAG) |
-| WS | `/ws` (STOMP topic `/topic/transactions/{userId}`) | Live transaction status push |
-
-> No authentication currently sits in front of these endpoints — see [Roadmap](#roadmap).
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/signup` | Public | Creates an account, returns a JWT |
+| POST | `/api/auth/login` | Public | Verifies credentials, returns a JWT |
+| POST | `/api/payments/create-order` | JWT required | Creates a Razorpay order for the authenticated user |
+| POST | `/api/payments/verify` | JWT required | Verifies payment signature, updates status, triggers AI fraud check or retry advice |
+| GET | `/api/payments/history` | JWT required | Returns the authenticated user's full transaction history |
+| POST | `/api/assistant/ask` | JWT required | Answers a natural-language question about the authenticated user's history (RAG) |
+| WS | `/ws` (STOMP topic `/topic/transactions/{email}`) | Public handshake | Live transaction status push |
 
 ---
 
@@ -207,24 +248,28 @@ Grounded natural-language answer returned
 ```
 Orvixa (backend)
 └── src/main/java/com/Orvixa/Orvixa
-    ├── config          # RazorpayConfig, WebSocketConfig, CorsConfig
-    ├── controller       # PaymentController, AssistantController, GlobalExceptionHandler
+    ├── config          # RazorpayConfig, WebSocketConfig, CorsConfig,
+    │                     # SecurityConfig, JwtAuthFilter
+    ├── controller       # PaymentController, AssistantController,
+    │                     # AuthController, GlobalExceptionHandler
     ├── service          # PaymentService, FraudDetectionService,
-    │                     # RetryAdvisorService, AssistantService, TransactionBroadcaster
-    ├── repository        # TransactionRepository (Spring Data JPA)
-    ├── model              # Transaction, TransactionStatus
+    │                     # RetryAdvisorService, AssistantService,
+    │                     # JwtService, TransactionBroadcaster
+    ├── repository        # TransactionRepository, UserRepository
+    ├── model              # Transaction, TransactionStatus, User
     └── dto                 # CreateOrderRequest/Response, PaymentVerificationRequest,
-                              # ChatRequest, ChatResponse
+                              # ChatRequest, ChatResponse, SignupRequest, LoginRequest, AuthResponse
 
 Orvixa-Frontend
 └── src
     ├── components
     │   ├── Header.jsx
+    │   ├── Login.jsx
     │   ├── PaymentForm.jsx
     │   ├── TransactionCard.jsx
     │   ├── StatusBadge.jsx
     │   └── AssistantChat.jsx
-    ├── App.jsx           # fetches history, subscribes to WebSocket, renders list + chat
+    ├── App.jsx           # auth gate, fetches history, subscribes to WebSocket, renders list + chat
     └── main.jsx
 ```
 
@@ -262,7 +307,7 @@ npm install
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173` (Vite default).
+Frontend runs on `http://localhost:5173` (Vite default). Sign up for a new account on first load — there's no seeded/demo user.
 
 ### Ollama
 
@@ -276,18 +321,20 @@ ollama serve
 
 ## Environment Variables
 
-Backend (`application.properties`), values sourced from real environment variables — never hardcoded:
+Backend (`application.properties`), values sourced from real environment variables where sensitive — never hardcoded for secrets that leave your machine:
 
 ```properties
 razorpay.key-id=${RAZORPAY_KEY_ID}
 razorpay.key-secret=${RAZORPAY_KEY_SECRET}
+
+jwt.secret=<a long random string, 32+ chars — generate your own, never reuse this repo's>
 
 spring.ai.ollama.base-url=http://localhost:11434
 spring.ai.ollama.chat.options.model=llama3.2
 spring.ai.ollama.chat.options.temperature=0.3
 ```
 
-`RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are set as environment variables (IntelliJ Run Configuration or shell export) — **never committed**.
+`RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are set as environment variables (IntelliJ Run Configuration or shell export) — **never committed**. `jwt.secret` should also be rotated/externalized before any real deployment; it's kept in properties here only for local learning convenience.
 
 ---
 
@@ -295,8 +342,11 @@ spring.ai.ollama.chat.options.temperature=0.3
 
 - Payment signatures are verified **server-side only**, via HMAC-SHA256, before a transaction is ever marked `SUCCESS`. The client's claim is never trusted directly.
 - Razorpay secret key never leaves the backend; only the public key ID is returned to the frontend.
-- CORS is scoped to `/api/**` and restricted to the known local frontend origin.
-- **Not yet implemented:** user authentication/authorization (see Roadmap) — currently `userId` is passed directly by the client, which is fine for a local learning build but would need real auth (e.g. JWT + login) before this touches real users or real money.
+- Passwords are hashed with BCrypt before storage; plaintext passwords are never persisted.
+- Authentication is stateless JWT (24-hour expiry) validated on every request by a custom filter — no server-side session store.
+- **Every** endpoint that touches transaction data derives `userId` from the verified JWT, never from client input — this closes the earlier gap where any client could impersonate any `userId` by simply naming it in the request.
+- CORS is scoped to the known local frontend origin.
+- **Not yet hardened for production:** the JWT secret lives in `application.properties` rather than a secrets manager, there's no refresh-token flow (token just expires after 24h), and the H2 console is left open for local development — all fine for a learning build, not for real users or real money.
 
 ---
 
@@ -305,42 +355,39 @@ spring.ai.ollama.chat.options.temperature=0.3
 Planned next, in order:
 
 - [ ] **AI spend insights** — natural-language weekly/monthly spending summaries generated from transaction history.
-- [ ] **Authentication** — real login + JWT, replacing the current hardcoded `userId`.
 - [ ] **Production-grade database** — migrate from embedded H2 to PostgreSQL.
+- [ ] **Refresh tokens** — replace the current "just re-login after 24h" expiry model.
 - [ ] **Polished frontend** — dashboard view, transaction filtering/search.
 
 ---
 
 ## Learning Outcomes
 
+- Building real authentication from scratch: password hashing (BCrypt), stateless JWT issuing/validation, and wiring a custom `Authentication` filter into Spring Security's chain
+- Recognizing and fixing an authorization gap (client-supplied `userId`) after noticing it — and understanding *why* trusting client-provided identity is unsafe
 - Payment gateway integration (Razorpay) with server-side signature verification
 - Applying a local LLM (Ollama + Spring AI) to real, structured use cases: fraud scoring, retry guidance, and retrieval-augmented Q&A — rather than open-ended chat
 - Recognizing and working around small-model limitations (e.g. offloading counting/arithmetic to Java rather than trusting the LLM to calculate)
 - Spring Boot fundamentals: dependency injection, layered architecture, Spring Data JPA
 - Real-time client-server communication with STOMP over WebSocket
-- CORS and cross-origin frontend/backend integration
-- Full-stack integration between a Spring Boot backend and a React (Vite) frontend
+- Full-stack integration between a Spring Boot backend and a React (Vite) frontend, including token-based auth on both sides
 
 ---
 
-## Screenshots
+## Demonstration
 
-<img width="1115" height="395" alt="Orvixa dashboard header" src="https://github.com/user-attachments/assets/cdb0a4ea-b6c8-484e-bc89-e8f8b183a9be" />
 
-<img width="709" height="572" alt="Payment form" src="https://github.com/user-attachments/assets/b35f20f9-b5bc-4454-bd72-f8ef2e2a6c5e" />
 
-<img width="496" height="372" alt="Transaction card" src="https://github.com/user-attachments/assets/8b74a164-84d1-4db1-9a2b-5d900408cd64" />
 
-<img width="1164" height="67" alt="Live status badge" src="https://github.com/user-attachments/assets/04507b81-a98f-445f-9e3a-29cbe82d22fd" />
 
-<img width="491" height="424" alt="Razorpay checkout success" src="https://github.com/user-attachments/assets/5765371b-97f2-52dd-ac3b-83a562e7ffef" />
+https://github.com/user-attachments/assets/10789a04-a9e0-4a7f-9290-b78e5669f2f0
 
-<img width="528" height="388" alt="Fraud/retry explanation card" src="https://github.com/user-attachments/assets/7a9e9a67-244f-416f-9583-6487e5effe6d" />
 
-<img width="517" height="268" alt="Screenshot 2026-08-02 165556" src="https://github.com/user-attachments/assets/8357487b-10a8-4dc9-b867-93fcb7ecc17c" />
 
-<img width="424" height="283" alt="Screenshot 2026-08-02 170029" src="https://github.com/user-attachments/assets/f9957ae8-d1a7-4d0a-b426-1abe4a3e3098" />
+
+
 
 
 
 ---
+
