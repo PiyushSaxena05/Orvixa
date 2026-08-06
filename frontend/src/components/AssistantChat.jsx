@@ -1,8 +1,6 @@
 import { useState } from 'react'
 
-const USER_ID = 'user_123'
-
-function AssistantChat() {
+function AssistantChat({ token }) {
   const [question, setQuestion] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
@@ -18,8 +16,11 @@ function AssistantChat() {
     try {
       const res = await fetch('http://localhost:8080/api/assistant/ask', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: USER_ID, question: userQuestion }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ question: userQuestion }),
       })
       const data = await res.json()
       setMessages((prev) => [...prev, { role: 'assistant', text: data.answer }])
