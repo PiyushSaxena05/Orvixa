@@ -7,9 +7,9 @@ import com.Orvixa.Orvixa.model.Transaction;
 import com.Orvixa.Orvixa.service.PaymentService;
 import com.razorpay.RazorpayException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.Orvixa.Orvixa.repository.TransactionRepository;
-import org.springframework.web.bind.annotation.PathVariable;
 import java.util.List;
 
 @RestController
@@ -25,17 +25,22 @@ public class PaymentController {
     }
 
     @PostMapping("/create-order")
-    public ResponseEntity<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request)
+    public ResponseEntity<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request,
+                                                           Authentication authentication)
             throws RazorpayException {
+
+        request.setUserId(authentication.getName());
         return ResponseEntity.ok(paymentService.createOrder(request));
     }
+
     @PostMapping("/verify")
     public ResponseEntity<Transaction> verifyPayment(@RequestBody PaymentVerificationRequest request) {
         return ResponseEntity.ok(paymentService.verifyAndFinalize(request));
     }
-    @GetMapping("/history/{userId}")
-    public ResponseEntity<List<Transaction>> getHistory(@PathVariable String userId) {
-        return ResponseEntity.ok(transactionRepository.findByUserIdOrderByCreatedAtDesc(userId));
+
+    @GetMapping("/history")
+    public ResponseEntity<List<Transaction>> getHistory(Authentication authentication) {
+
+        return ResponseEntity.ok(transactionRepository.findByUserIdOrderByCreatedAtDesc(authentication.getName()));
     }
 }
-
