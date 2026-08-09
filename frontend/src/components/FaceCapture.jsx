@@ -14,7 +14,7 @@ async function loadModels() {
 
 function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
   const videoRef = useRef(null)
-  const [status, setStatus] = useState('idle') // idle | loading | scanning | detecting | done | error
+  const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -33,18 +33,39 @@ function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
     setStatus('loading')
     try {
       await loadModels()
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: {} })
-      videoRef.current.srcObject = stream
-      await videoRef.current.play()
-
       setStatus('scanning')
     } catch (err) {
       console.error(err)
-      setError('Could not access camera. Please allow camera permission.')
+      setError(`Model load error: ${err.name} - ${err.message}`)
       setStatus('error')
     }
   }
+
+  useEffect(() => {
+    if (status !== 'scanning') return
+
+    let stream
+
+    const enableCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: {} })
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+        }
+      } catch (err) {
+        console.error(err)
+        setError(`Camera error: ${err.name} - ${err.message}`)
+        setStatus('error')
+      }
+    }
+
+    enableCamera()
+
+    return () => {
+      if (stream) stream.getTracks().forEach((track) => track.stop())
+    }
+  }, [status])
 
   const captureAndDetect = async () => {
     setStatus('detecting')
@@ -106,6 +127,11 @@ function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
       )}
 
       {status === 'done' && <p className="text-sm text-success">Face captured ✓</p>}
+      {status === 'error' && (
+        <button onClick={startScan} type="button" className="text-sm text-brass underline">
+          Try again
+        </button>
+      )}
 
       {error && <p className="text-sm text-danger mt-2">{error}</p>}
     </div>
