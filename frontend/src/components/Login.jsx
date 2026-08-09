@@ -13,8 +13,8 @@ function Login({ onAuth }) {
   const handleSubmit = async () => {
     setError('')
 
-    if (isSignup && !faceDescriptor) {
-      setError('Please complete face scan before signing up')
+    if (!faceDescriptor) {
+      setError('Please complete face scan first')
       return
     }
 
@@ -23,7 +23,7 @@ function Login({ onAuth }) {
       const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login'
       const body = isSignup
         ? { email, password, fullName, faceDescriptor: JSON.stringify(faceDescriptor) }
-        : { email, password }
+        : { email, password, faceDescriptor: JSON.stringify(faceDescriptor) }
 
       const res = await fetch(`http://localhost:8080${endpoint}`, {
         method: 'POST',
@@ -77,12 +77,10 @@ function Login({ onAuth }) {
         className="w-full bg-ink border border-border-soft rounded-lg px-3 py-2 text-sm text-text-primary outline-none mb-3"
       />
 
-      {isSignup && (
-        <div className="mb-3 p-3 bg-ink rounded-lg">
-          <p className="text-xs text-text-muted mb-2">Face verification required</p>
-          <FaceCapture onCapture={setFaceDescriptor} buttonLabel="Scan Face" />
-        </div>
-      )}
+      <div className="mb-3 p-3 bg-ink rounded-lg">
+        <p className="text-xs text-text-muted mb-2">Face verification required</p>
+        <FaceCapture onCapture={setFaceDescriptor} buttonLabel="Scan Face" />
+      </div>
 
       {error && <p className="text-sm text-danger mb-3">{error}</p>}
 
@@ -96,7 +94,13 @@ function Login({ onAuth }) {
 
       <p className="text-center text-sm text-text-muted mt-4">
         {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-        <button onClick={() => setIsSignup(!isSignup)} className="text-brass underline">
+        <button
+          onClick={() => {
+            setIsSignup(!isSignup)
+            setFaceDescriptor(null)
+          }}
+          className="text-brass underline"
+        >
           {isSignup ? 'Login' : 'Sign Up'}
         </button>
       </p>
