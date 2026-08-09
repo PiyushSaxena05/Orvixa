@@ -5,6 +5,7 @@ import com.Orvixa.Orvixa.dto.LoginRequest;
 import com.Orvixa.Orvixa.dto.SignupRequest;
 import com.Orvixa.Orvixa.model.User;
 import com.Orvixa.Orvixa.repository.UserRepository;
+import com.Orvixa.Orvixa.service.FaceMatchService;
 import com.Orvixa.Orvixa.service.JwtService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,13 +18,16 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final FaceMatchService faceMatchService;
 
     public AuthController(UserRepository userRepository,
                           PasswordEncoder passwordEncoder,
-                          JwtService jwtService) {
+                          JwtService jwtService,
+                          FaceMatchService faceMatchService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.faceMatchService = faceMatchService;
     }
 
     @PostMapping("/signup")
@@ -52,6 +56,13 @@ public class AuthController {
 
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             return ResponseEntity.status(401).body("Invalid email or password");
+        }
+
+        if (user.getFaceDescriptor() != null && request.getFaceDescriptor() != null) {
+            boolean faceMatches = faceMatchService.isMatch(user.getFaceDescriptor(), request.getFaceDescriptor());
+            if (!faceMatches) {
+                return ResponseEntity.status(401).body("Face verification failed");
+            }
         }
 
         String token = jwtService.generateToken(user.getEmail());
