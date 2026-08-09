@@ -17,6 +17,9 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Column(length = 4000)
+    private String faceDescriptor;
+
     @Column(nullable = false)
     private String fullName;
 
@@ -51,6 +54,14 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getFaceDescriptor() {
+        return faceDescriptor;
+    }
+
+    public void setFaceDescriptor(String faceDescriptor) {
+        this.faceDescriptor = faceDescriptor;
     }
 
     public String getFullName() {
