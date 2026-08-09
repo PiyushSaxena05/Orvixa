@@ -5,6 +5,7 @@ public class SignupRequest {
     private String email;
     private String password;
     private String fullName;
+    private String faceDescriptor;
 
     public SignupRequest() {
     }
@@ -31,5 +32,13 @@ public class SignupRequest {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getFaceDescriptor() {
+        return faceDescriptor;
+    }
+
+    public void setFaceDescriptor(String faceDescriptor) {
+        this.faceDescriptor = faceDescriptor;
     }
 }
