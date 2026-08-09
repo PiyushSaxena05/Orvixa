@@ -1,19 +1,29 @@
 import { useState } from 'react'
+import FaceCapture from './FaceCapture'
 
 function Login({ onAuth }) {
   const [isSignup, setIsSignup] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [faceDescriptor, setFaceDescriptor] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
     setError('')
+
+    if (isSignup && !faceDescriptor) {
+      setError('Please complete face scan before signing up')
+      return
+    }
+
     setLoading(true)
     try {
       const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login'
-      const body = isSignup ? { email, password, fullName } : { email, password }
+      const body = isSignup
+        ? { email, password, fullName, faceDescriptor: JSON.stringify(faceDescriptor) }
+        : { email, password }
 
       const res = await fetch(`http://localhost:8080${endpoint}`, {
         method: 'POST',
@@ -66,6 +76,13 @@ function Login({ onAuth }) {
         onChange={(e) => setPassword(e.target.value)}
         className="w-full bg-ink border border-border-soft rounded-lg px-3 py-2 text-sm text-text-primary outline-none mb-3"
       />
+
+      {isSignup && (
+        <div className="mb-3 p-3 bg-ink rounded-lg">
+          <p className="text-xs text-text-muted mb-2">Face verification required</p>
+          <FaceCapture onCapture={setFaceDescriptor} buttonLabel="Scan Face" />
+        </div>
+      )}
 
       {error && <p className="text-sm text-danger mb-3">{error}</p>}
 
