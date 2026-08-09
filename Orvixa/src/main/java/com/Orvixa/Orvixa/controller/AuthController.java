@@ -36,6 +36,7 @@ public class AuthController {
         String hashedPassword = passwordEncoder.encode(request.getPassword());
 
         User user = new User(request.getEmail(), hashedPassword, request.getFullName());
+        user.setFaceDescriptor(request.getFaceDescriptor());
         userRepository.save(user);
 
         String token = jwtService.generateToken(user.getEmail());
