@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -35,6 +37,16 @@ public class AuthController {
 
         if (userRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Email already registered");
+        }
+
+        if (request.getFaceDescriptor() != null) {
+            Optional<User> matchingUser = faceMatchService.findMatchingUser(request.getFaceDescriptor());
+            if (matchingUser.isPresent()) {
+                return ResponseEntity.badRequest().body(
+                        "This face is already registered with a different account. " +
+                        "Each face can only be linked to one account."
+                );
+            }
         }
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
