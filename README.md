@@ -40,7 +40,6 @@ This is an actively-developed, project-based learning build. The features below 
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Security Notes](#security-notes)
-- [Roadmap](#roadmap)
 - [Learning Outcomes](#learning-outcomes)
 - [Demonstration](#demonstration)
 
@@ -375,19 +374,6 @@ spring.ai.ollama.chat.options.temperature=0.3
 - **Every** endpoint that touches transaction data derives `userId` from the verified JWT, never from client input.
 - CORS explicitly allows credentials for the WebSocket handshake while remaining scoped to known local frontend origins.
 - **Not yet hardened for production:** the JWT secret lives in `application.properties` rather than a secrets manager, there's no refresh-token flow, the face-match check is O(n) against all users (fine at small scale, not at real scale), there's no liveness/anti-spoofing detection, and the H2 console is left open for local development — all fine for a learning build, not for real users or real money.
-
----
-
-## Roadmap
-
-Planned next, in order:
-
-- [ ] **Email OTP** — an additional verification step at signup/login, sent via email (free) rather than SMS (which requires a paid provider like Twilio).
-- [ ] **Deployment** — frontend on Netlify/Vercel (auto-deploy on push), backend on Render/Railway. Note: the AI features depend on a locally-running Ollama instance, which isn't practical on free-tier cloud hosting — production AI calls would need to move to a hosted LLM API (e.g. Groq's free tier) while local development keeps using Ollama.
-- [ ] **AI spend insights** — natural-language weekly/monthly spending summaries generated from transaction history.
-- [ ] **Production-grade database** — migrate from embedded H2 to PostgreSQL.
-- [ ] **Refresh tokens** — replace the current "just re-login after 24h" expiry model.
-- [ ] **Polished frontend** — dashboard view, transaction filtering/search.
 
 ---
 
