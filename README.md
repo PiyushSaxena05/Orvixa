@@ -411,6 +411,3 @@ Planned next, in order:
 https://github.com/user-attachments/assets/10789a04-a9e0-4a7f-9290-b78e5669f2f0
 
 ---
-
-### Author
-Built by [Piyush Saxena](https://github.com/PiyushSaxena05) as a hands-on, project-based way to learn Spring Boot, Spring Security, applied biometrics, Spring AI, and real-time systems.
