@@ -9,6 +9,8 @@ function Login({ onAuth }) {
   const [faceDescriptor, setFaceDescriptor] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [otpStep, setOtpStep] = useState(false)
+  const [otp, setOtp] = useState('')
 
   const handleSubmit = async () => {
     setError('')
@@ -36,6 +38,36 @@ function Login({ onAuth }) {
         throw new Error(msg || 'Something went wrong')
       }
 
+      if (isSignup) {
+        const data = await res.json()
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('email', data.email)
+        onAuth(data)
+      } else {
+        setOtpStep(true)
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch('http://localhost:8080/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp }),
+      })
+
+      if (!res.ok) {
+        const msg = await res.text()
+        throw new Error(msg || 'Invalid OTP')
+      }
+
       const data = await res.json()
       localStorage.setItem('token', data.token)
       localStorage.setItem('email', data.email)
@@ -45,6 +77,35 @@ function Login({ onAuth }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (otpStep) {
+    return (
+      <div className="max-w-md mx-auto mt-24 bg-surface border border-border-soft rounded-2xl p-8">
+        <p className="font-mono text-[11px] text-text-muted uppercase tracking-widest mb-6">
+          Enter OTP
+        </p>
+        <p className="text-sm text-text-muted mb-4">
+          We sent a 6-digit code to {email}
+        </p>
+        <input
+          type="text"
+          placeholder="000000"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value)}
+          maxLength={6}
+          className="w-full bg-ink border border-border-soft rounded-lg px-3 py-2 text-sm text-text-primary outline-none mb-3 tracking-widest text-center text-lg"
+        />
+        {error && <p className="text-sm text-danger mb-3">{error}</p>}
+        <button
+          onClick={handleVerifyOtp}
+          disabled={loading}
+          className="w-full bg-brass hover:bg-brass-dim transition-colors text-ink font-medium py-3 rounded-xl disabled:opacity-50"
+        >
+          {loading ? 'Verifying...' : 'Verify OTP'}
+        </button>
+      </div>
+    )
   }
 
   return (
