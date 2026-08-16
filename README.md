@@ -396,4 +396,13 @@ spring.ai.ollama.chat.options.temperature=0.3
 
 https://github.com/user-attachments/assets/10789a04-a9e0-4a7f-9290-b78e5669f2f0
 
+
+<img width="593" height="273" alt="Screenshot 2026-08-16 183634" src="https://github.com/user-attachments/assets/7a20bfff-4238-4659-be3c-ab99bfaf27a2" />
+
+
+<img width="535" height="315" alt="Screenshot 2026-08-16 183647" src="https://github.com/user-attachments/assets/beeaf84d-5d54-4f03-8b9c-3eee0a3b2ab4" />
+
+
+
+
 ---
