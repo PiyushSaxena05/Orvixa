@@ -94,8 +94,7 @@ function Login({ onAuth }) {
           value={otp}
           onChange={(e) => setOtp(e.target.value)}
           maxLength={6}
-          className="w-full bg-ink border border-border-soft rounded-lg px-3 py-2 text-sm text-text-primary outline-none mb-3 tracking-widest text-center text-lg"
-        />
+className="w-full bg-ink border border-border-soft rounded-lg px-3 py-2 text-text-primary outline-none mb-3 tracking-widest text-center text-lg"        />
         {error && <p className="text-sm text-danger mb-3">{error}</p>}
         <button
           onClick={handleVerifyOtp}
