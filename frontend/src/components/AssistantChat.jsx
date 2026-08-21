@@ -42,10 +42,17 @@ function AssistantChat({ token }) {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-10 bg-surface border border-border-soft rounded-2xl p-6">
-      <p className="font-mono text-[11px] text-text-muted uppercase tracking-widest mb-4">
-        Ask about your payments
-      </p>
+    <div className="max-w-md mx-auto mt-10 bg-surface border border-border-soft rounded-2xl p-6 shadow-xl shadow-black/20">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-7 h-7 rounded-full bg-accent-secondary/10 border border-accent-secondary/30 flex items-center justify-center shrink-0">
+          <svg width="14" height="14" viewBox="0 0 24 24" className="text-accent-secondary">
+            <path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4l3 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <p className="font-display font-medium text-sm text-text-primary">
+          Ask about your payments
+        </p>
+      </div>
 
       <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
         {messages.length === 0 && (
@@ -56,18 +63,20 @@ function AssistantChat({ token }) {
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`text-sm p-3 rounded-lg ${
+            className={`text-sm p-3 rounded-lg leading-relaxed ${
               msg.role === 'user'
-                ? 'bg-brass/10 text-text-primary ml-6'
-                : 'bg-ink text-text-muted mr-6'
+                ? 'bg-accent-secondary/10 text-text-primary ml-8'
+                : 'bg-ink border border-border-soft text-text-primary mr-8'
             }`}
           >
             {msg.text}
           </div>
         ))}
         {loading && (
-          <div className="text-sm p-3 rounded-lg bg-ink text-text-muted mr-6 italic">
-            Thinking...
+          <div className="flex items-center gap-1.5 text-sm p-3 rounded-lg bg-ink border border-border-soft text-text-muted mr-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-secondary animate-pulse" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-secondary animate-pulse" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-secondary animate-pulse" style={{ animationDelay: '300ms' }} />
           </div>
         )}
       </div>
@@ -79,12 +88,12 @@ function AssistantChat({ token }) {
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask a question..."
-          className="flex-1 bg-ink border border-border-soft rounded-lg px-3 py-2 text-sm text-text-primary outline-none"
+          className="flex-1 bg-ink border border-border-soft focus:border-accent-secondary rounded-lg px-3 py-2 text-sm text-text-primary outline-none transition-colors"
         />
         <button
           onClick={handleAsk}
           disabled={loading}
-          className="bg-brass hover:bg-brass-dim transition-colors text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+          className="bg-accent-secondary hover:brightness-110 transition-all text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
         >
           Ask
         </button>
