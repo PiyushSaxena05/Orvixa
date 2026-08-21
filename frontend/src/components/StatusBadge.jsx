@@ -1,7 +1,7 @@
 const statusStyles = {
   SUCCESS: 'bg-success/10 text-success border-success/30',
   FAILED: 'bg-danger/10 text-danger border-danger/30',
-  FLAGGED: 'bg-brass/10 text-brass border-brass/30',
+  FLAGGED: 'bg-accent-secondary/10 text-accent-secondary border-accent-secondary/30',
   CREATED: 'bg-text-muted/10 text-text-muted border-text-muted/30',
 }
 
