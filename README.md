@@ -423,7 +423,13 @@ spring.ai.ollama.chat.options.temperature=0.3
 
 ## Demonstration
 
-https://github.com/user-attachments/assets/10789a04-a9e0-4a7f-9290-b78e5669f2f0
+
+
+https://github.com/user-attachments/assets/d9f782e7-703a-4ae3-92a9-976b95351886
+
+
+
+
 
 <img width="593" height="273" alt="Email OTP received during login" src="https://github.com/user-attachments/assets/7a20bfff-4238-4659-be3c-ab99bfaf27a2" />
 
