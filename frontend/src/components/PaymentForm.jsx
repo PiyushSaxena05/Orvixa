@@ -87,12 +87,22 @@ function PaymentForm({ token }) {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16 bg-surface border border-border-soft rounded-2xl p-8">
-      <p className="font-mono text-[11px] text-text-muted uppercase tracking-widest mb-6">
-        New Payment
-      </p>
+    <div className="max-w-md mx-auto mt-16 bg-surface border border-border-soft rounded-2xl p-8 shadow-2xl shadow-black/30 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-40 h-40 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="flex items-baseline gap-2 mb-8">
+      <div className="flex items-center justify-between mb-6 relative">
+        <p className="font-mono text-[11px] text-text-muted uppercase tracking-widest">
+          New Payment
+        </p>
+        <div className="flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" className="text-accent">
+            <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[10px] text-text-muted font-mono uppercase tracking-wider">Secured</span>
+        </div>
+      </div>
+
+      <div className="flex items-baseline gap-2 mb-2 relative">
         <span className="font-display text-3xl text-text-muted">₹</span>
         <input
           type="number"
@@ -105,18 +115,29 @@ function PaymentForm({ token }) {
           className="font-mono text-5xl bg-transparent text-text-primary outline-none w-full placeholder:text-text-muted/40"
         />
       </div>
+      <p className="text-xs text-text-muted mb-6">Enter the amount you want to pay</p>
 
       {error && (
-        <p className="text-sm text-danger mb-4 -mt-4">{error}</p>
+        <div className="flex items-start gap-2 mb-4 text-sm text-danger">
+          <svg width="16" height="16" viewBox="0 0 24 24" className="shrink-0 mt-0.5">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M12 8v5M12 16h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span>{error}</span>
+        </div>
       )}
 
       <button
         onClick={handlePay}
         disabled={loading}
-        className="w-full bg-brass hover:bg-brass-dim transition-colors text-ink font-medium py-3.5 rounded-xl disabled:opacity-50"
+        className="w-full bg-accent hover:bg-accent-dim transition-colors text-ink font-semibold py-3.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? 'Processing...' : 'Pay Now'}
       </button>
+
+      <p className="text-center text-[11px] text-text-muted mt-4 font-mono">
+        Powered by Razorpay · PCI-DSS compliant checkout
+      </p>
     </div>
   )
 }
