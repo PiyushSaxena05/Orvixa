@@ -87,14 +87,12 @@ function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
     console.log('ssdMobilenetv1 isLoaded:', faceapi.nets.ssdMobilenetv1.isLoaded)
 
     try {
-      // Sabse pehle low confidence pe saare detections dhundo, dikhne ke liye
       const allBoxes = await faceapi.detectAllFaces(
         videoRef.current,
         new faceapi.SsdMobilenetv1Options({ minConfidence: 0.05 })
       )
       console.log('Raw boxes found at 0.05 confidence:', allBoxes.length, allBoxes)
 
-      // Detection box ko canvas pe draw karo taaki dikhe
       if (canvasRef.current && allBoxes.length > 0) {
         const displaySize = { width: videoRef.current.width, height: videoRef.current.height }
         faceapi.matchDimensions(canvasRef.current, displaySize)
@@ -134,7 +132,7 @@ function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
         <button
           onClick={startScan}
           type="button"
-          className="bg-brass hover:bg-brass-dim transition-colors text-ink font-medium px-4 py-2 rounded-lg text-sm"
+          className="bg-accent hover:bg-accent-dim transition-colors text-ink font-medium px-4 py-2 rounded-lg text-sm"
         >
           {buttonLabel}
         </button>
@@ -164,7 +162,7 @@ function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
             onClick={captureAndDetect}
             disabled={status === 'detecting'}
             type="button"
-            className="mt-3 bg-brass hover:bg-brass-dim transition-colors text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+            className="mt-3 bg-accent hover:bg-accent-dim transition-colors text-ink font-medium px-4 py-2 rounded-lg text-sm disabled:opacity-50"
           >
             {status === 'detecting' ? 'Detecting...' : 'Capture'}
           </button>
@@ -173,7 +171,7 @@ function FaceCapture({ onCapture, buttonLabel = 'Scan Face' }) {
 
       {status === 'done' && <p className="text-sm text-success">Face captured ✓</p>}
       {status === 'error' && (
-        <button onClick={startScan} type="button" className="text-sm text-brass underline">
+        <button onClick={startScan} type="button" className="text-sm text-accent underline">
           Try again
         </button>
       )}
