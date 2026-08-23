@@ -12,6 +12,9 @@ public class Transaction {
 
     @Column(length = 1000)
     private String fraudExplanation;
+
+    @Column(length = 500)
+    private String retrySuggestion;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -53,6 +56,14 @@ public class Transaction {
 
     public void setFraudExplanation(String fraudExplanation) {
         this.fraudExplanation = fraudExplanation;
+    }
+
+    public String getRetrySuggestion() {
+        return retrySuggestion;
+    }
+
+    public void setRetrySuggestion(String retrySuggestion) {
+        this.retrySuggestion = retrySuggestion;
     }
 
     public Transaction(){

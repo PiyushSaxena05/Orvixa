@@ -28,14 +28,18 @@ public class PaymentService {
 
     private final TransactionBroadcaster broadcaster;
 
+    private final RetryAdvisorService retryAdvisorService;
+
     public PaymentService(RazorpayClient razorpayClient,
                           TransactionRepository transactionRepository,
                           FraudDetectionService fraudDetectionService,
-                          TransactionBroadcaster broadcaster) {
+                          TransactionBroadcaster broadcaster,
+                          RetryAdvisorService retryAdvisorService) {
         this.razorpayClient = razorpayClient;
         this.transactionRepository = transactionRepository;
         this.fraudDetectionService = fraudDetectionService;
         this.broadcaster = broadcaster;
+        this.retryAdvisorService = retryAdvisorService;
     }
 
     public CreateOrderResponse createOrder(CreateOrderRequest request) throws RazorpayException {
@@ -87,6 +91,8 @@ public class PaymentService {
 
         if (saved.getStatus() == TransactionStatus.SUCCESS) {
             fraudDetectionService.analyzeFraud(saved);
+        } else if (saved.getStatus() == TransactionStatus.FAILED) {
+            retryAdvisorService.adviseOnFailure(saved);
         }
 
         return saved;
