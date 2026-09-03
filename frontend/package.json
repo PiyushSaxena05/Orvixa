@@ -12,6 +12,7 @@
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
     "@tailwindcss/vite": "^4.3.3",
+    "face-api.js": "^0.22.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "sockjs-client": "^1.6.1",
